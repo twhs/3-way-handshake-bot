@@ -1,6 +1,5 @@
 
 from twitter import *
-import schedule
 import time
 import configparser
 import re
@@ -28,10 +27,9 @@ def do_main():
     config ファイルで設定された INTERVAL に従って、
     一定間隔でbotを動作させる。
     """
-    schedule.every(INTERVAL).seconds.do(bot)
     while True:
-        schedule.run_pending()
-        time.sleep(1)
+        bot()
+        time.sleep(INTERVAL)
 
 def bot():
     """ メンションを受け取り、3-way-handshakeする。
