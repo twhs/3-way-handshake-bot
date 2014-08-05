@@ -4,7 +4,7 @@ from datetime import datetime
 import time, configparser, re, signal, os
 
 config = configparser.ConfigParser()
-config.read('./config')
+config.read('./share/config')
 
 # API キー 設定 
 OAUTH_TOKEN = config['API_KEY']['OAUTH_TOKEN']
@@ -32,7 +32,7 @@ def do_main():
     while True:
         bot()
         config.set("APP", "LAST_MENTION_ID", str(last_mention_id))
-        with open("./config", "w") as f:
+        with open("./share/config", "w") as f:
             config.write(f)
         time.sleep(INTERVAL)
 
