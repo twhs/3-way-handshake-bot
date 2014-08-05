@@ -4,4 +4,4 @@ include/
 lib/
 .Python
 __pycache__/
-config
+share/config
