@@ -1,9 +1,7 @@
 
 from twitter import *
-import time
-import configparser
-import re
 from urllib.error import HTTPError
+import time, configparser, re, signal, os
 
 config = configparser.ConfigParser()
 config.read('./config')
@@ -18,7 +16,14 @@ MYNAME = "3_way_handshake"
 
 t = Twitter(auth=OAuth(OAUTH_TOKEN, OAUTH_SECRET,
                          CONSUMER_KEY, CONSUMER_SECRET))
-last_mention_id = 1 
+
+# 最後に返信したtweetのtweet_idを代入
+if os.path.exists("./last_mention_id"):
+    with open("./last_mention_id", "r") as f:
+        last_mention_id = int(f.readline())
+else :
+    last_mention_id = 1 
+
 status={"SYN-RECEIVED":[], "ESTABLIESHED":[]}
 
 def do_main():
@@ -64,12 +69,15 @@ def get_mentions():
         name_text = mention['user']['screen_name'], mention['text']
         tuples.append(name_text)
     last_mention_id = int(mentions[0]['id'])
+
     return tuples
 
 def create_response(mention):
     screen_name = mention[0]
     text = mention[1]
     response = ""
+    
+    # メンションの内容を解析
     if not is_mention_to_only_myself(text) or screen_name == MYNAME:
         response = None
     elif is_syn(screen_name, text):
@@ -96,18 +104,53 @@ def is_mention_to_only_myself(text):
         return False
 
 def is_syn(screen_name, text):
-    if text.find("SYN") == -1 or screen_name in status['SYN-RECEIVED']:
+    """
+    SYN かどうか確認
+    """
+    if not is_syn_str(text) or screen_name in status['SYN-RECEIVED']:
         return False
     else:
+        return True
+
+def is_syn_str(text):
+    """ 
+    受信した文字列に"SYN"が含まれるかどうか確認する。
+    """
+    if text.find("SYN") == -1 or text.find("syn") == -1:
+        return False
+    else:
+        if text.find("ACK") != -1 or text.find("ack") != -1:
+            return False
         return True
 
 def is_ack(screen_name, text):
-    if text.find("ACK") == -1 or screen_name in status['ESTABLIESHED']:
+    """
+    ACK かどうか確認
+    """
+    if not is_ack_str(text) or screen_name in status['ESTABLIESHED']:
         return False
     else:
         return True
 
+def is_ack_str(text):
+    """ 
+    受信した文字列に"ACK"が含まれるかどうか確認する。
+    """
+    if text.find("ACK") == -1 or text.find("ack") == -1:
+        return False
+    else:
+        if text.find("SYN") != -1 or text.find("syn") != -1:
+            return False
+        return True
+
+def handler(signum, frame):
+    """
+    SIGINT を受け取った時に、last_mention_idをファイルに出力
+    """
+    with open('./last_mention_id', 'w') as f:
+        f.write(str(last_mention_id)) 
 
 if __name__ == '__main__':
-    print(t.statuses.mentions_timeline(since_id=last_mention_id).reverse())
+    #シグナル設定
+    signal.signal(signal.SIGINT, handler)
     do_main()
