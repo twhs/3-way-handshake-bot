@@ -1,30 +1,27 @@
-
 from twitter import *
 from urllib.error import HTTPError
+from datetime import datetime
 import time, configparser, re, signal, os
 
 config = configparser.ConfigParser()
 config.read('./config')
 
+# API キー 設定 
 OAUTH_TOKEN = config['API_KEY']['OAUTH_TOKEN']
 OAUTH_SECRET = config['API_KEY']['OAUTH_SECRET']
 CONSUMER_KEY = config['API_KEY']['CONSUMER_KEY']
 CONSUMER_SECRET = config['API_KEY']['CONSUMER_SECRET']
 
+# BOT の設定
 INTERVAL = int(config['APP']['INTERVAL'])
 MYNAME = "3_way_handshake"
 
-t = Twitter(auth=OAuth(OAUTH_TOKEN, OAUTH_SECRET,
-                         CONSUMER_KEY, CONSUMER_SECRET))
-
-# 最後に返信したtweetのtweet_idを代入
-if os.path.exists("./last_mention_id"):
-    with open("./last_mention_id", "r") as f:
-        last_mention_id = int(f.readline())
-else :
-    last_mention_id = 1 
+# 最後に返信した tweet の tweet_id を取得
+last_mention_id = config['APP']['LAST_MENTION_ID']
 
 status={"SYN-RECEIVED":[], "ESTABLIESHED":[]}
+t = Twitter(auth=OAuth(OAUTH_TOKEN, OAUTH_SECRET,
+                         CONSUMER_KEY, CONSUMER_SECRET))
 
 def do_main():
     """ 一定間隔でbotを動かす
@@ -34,6 +31,9 @@ def do_main():
     """
     while True:
         bot()
+        config.set("APP", "LAST_MENTION_ID", str(last_mention_id))
+        with open("./config", "w") as f:
+            config.write(f)
         time.sleep(INTERVAL)
 
 def bot():
@@ -41,14 +41,14 @@ def bot():
 
     メンションを取得し、内容によって、異なる返答をする。
     """
-    print("[DEBUG]")
-    print(status)
+    print("[DEBUG] {0:s}".format(str(status)))
     status['ESTABLIESHED'] = []
     mentions = get_mentions()
     if mentions is None:
         return 
     for mention in mentions:
         res = create_response(mention)
+        print("[LOG]" + res)
         if res is not None:
             try:
                 t.statuses.update(status=res)
@@ -75,20 +75,21 @@ def get_mentions():
 def create_response(mention):
     screen_name = mention[0]
     text = mention[1]
-    response = ""
+    response_tmplate = "@{0:s} {1:s} at " + str(datetime.today())
+    response=""
     
     # メンションの内容を解析
     if not is_mention_to_only_myself(text) or screen_name == MYNAME:
         response = None
     elif is_syn(screen_name, text):
         status['SYN-RECEIVED'].append(screen_name)
-        response = "@" + screen_name + " SYN+ACK"
+        response = response_tmplate.format(screen_name, "SYN+ACK")
     elif is_ack(screen_name, text):
         status['SYN-RECEIVED'].remove(screen_name)
         status['ESTABLIESHED'].append(screen_name)
-        response = "@" + screen_name + " ESTABLISHED"
+        response = response_tmplate.format(screen_name, "ESTABLIESHED")
     else:
-        response = "@" + screen_name + " RST"
+        response = response_tmplate.format(screen_name, "RST")
 
     return response
 
@@ -143,14 +144,5 @@ def is_ack_str(text):
             return False
         return True
 
-def handler(signum, frame):
-    """
-    SIGINT を受け取った時に、last_mention_idをファイルに出力
-    """
-    with open('./last_mention_id', 'w') as f:
-        f.write(str(last_mention_id)) 
-
 if __name__ == '__main__':
-    #シグナル設定
-    signal.signal(signal.SIGINT, handler)
     do_main()
