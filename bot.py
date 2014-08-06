@@ -113,36 +113,45 @@ def is_syn(screen_name, text):
     else:
         return True
 
+def is_syn(screen_name, text):
+    """
+    メンション内容が SYN であるかどうか確認。
+    """
+    if is_syn_str(text) and screen_name not in status['SYN-RECEIVED']:
+        return True
+    else:
+        return False
+
 def is_syn_str(text):
     """ 
     受信した文字列に"SYN"が含まれるかどうか確認する。
     """
-    if text.find("SYN") == -1 or text.find("syn") == -1:
-        return False
-    else:
-        if text.find("ACK") != -1 or text.find("ack") != -1:
+    if text.find("SYN") >= 0 or text.find("syn") >= 0:
+        if text.find("ACK") >= 0 or text.find("ack") >= 0:
             return False
         return True
+    else:
+        return False
 
 def is_ack(screen_name, text):
     """
     ACK かどうか確認
     """
-    if not is_ack_str(text) or screen_name in status['ESTABLIESHED']:
-        return False
-    else:
+    if is_ack_str(text) and screen_name not in status['ESTABLIESHED']:
         return True
+    else:
+        return False
 
 def is_ack_str(text):
     """ 
     受信した文字列に"ACK"が含まれるかどうか確認する。
     """
-    if text.find("ACK") == -1 or text.find("ack") == -1:
-        return False
-    else:
-        if text.find("SYN") != -1 or text.find("syn") != -1:
+    if text.find("ACK") >= 0 or text.find("ack") >= 0:
+        if text.find("SYN") >= 0 or text.find("syn") >= 0:
             return False
         return True
+    else:
+        return False
 
 if __name__ == '__main__':
     do_main()
